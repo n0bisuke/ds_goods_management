@@ -1,0 +1,258 @@
+<!doctype html>
+<html style="height:100%;font-size:14px;">
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" type="text/css" href="css/gc.spread.views.dataview.10.3.0.css">
+    <link rel="stylesheet" type="text/css" href="css/bootstrap-snippet.min.css">
+    <script src="js/gc.spread.common.10.3.0.min.js" type="text/javascript"></script>
+    <script src="js/gc.spread.views.dataview.10.3.0.min.js" type="text/javascript"></script>
+    <script src="js/locale/gc.spread.views.dataview.locale.ja-JP.10.3.0.min.js" type="text/javascript"></script>
+    <script src="js/plugins/gc.spread.views.gridlayout.10.3.0.min.js" type="text/javascript"></script>
+    <script src="js/plugins/gc.spread.views.trellisgrouping.10.3.0.min.js" type="text/javascript"></script>
+    <script src="js/zepto.min.js" type="text/javascript"></script>
+    <script src="js/license.js" type="text/javascript"></script>
+    <style>
+        * {
+            -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+        }
+        
+        html {
+            position: fixed;
+            width: 100%;
+        }
+        
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+            border-radius: 5px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #d6dadc;
+        }
+        
+        ::-webkit-scrollbar-corner {
+            display: none;
+        }
+        
+        .gc-grid {
+            border: none;
+            background: #fff url(images/background.png);
+            color: #4d4d4d;
+            padding: 0.4em;
+        }
+        
+        .button-container {
+            margin-bottom: 1em;
+        }
+        
+        .employee-photo {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+        }
+        
+        .group-item-title {
+            border: none;
+            color: #f1f1f1;
+            background: #C48C43;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            padding: 0.4em;
+            font-size: 16px;
+        }
+        
+        .group-photo-container,
+        .group-item-description {
+            border: none;
+        }
+        
+        .group-photo-container {
+            position: absolute;
+            top: 3.5em;
+            right: 0.4em;
+        }
+        
+        .group-item-description {
+            padding: 8px;
+        }
+        
+        .gc-trellis-group-header-inner {
+            padding: 0 0.4em;
+            font-size: 16px;
+        }
+        
+        .group-item-container {
+            height: 100%;
+            font-size: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .group-item-container-inner {
+            height: 95%;
+            border-radius: 4px;
+            overflow: hidden;
+            color: #f1f1f1;
+            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.10);
+        }
+        
+        .finish {
+            background: #603E50;
+        }
+        
+        .eighty-per {
+            background: #695877;
+        }
+        
+        .fifty-per {
+            background: #73738E;
+        }
+        
+        .thirty-per {
+            background: #7C9EAA;
+        }
+        
+        .start {
+            background: #8FC8C9;
+        }
+        
+        .finish-head {
+            background: #533747;
+        }
+        
+        .eighty-per-head {
+            background: #5F506B;
+        }
+        
+        .fifty-per-head {
+            background: #6A6B83;
+        }
+        
+        .thirty-per-head {
+            background: #76949F;
+        }
+        
+        .start-head {
+            background: #86BBBD;
+        }
+        
+        .trellis-grouping .gc-trellis-group-header {
+            line-height: 24px;
+        }
+    </style>
+</head>
+
+<body style="margin:0;position:absolute;top:0;bottom:0;left:0;right:0;font-size:14px;user-select:none;-webkit-user-select: none;overflow:hidden;">
+    <div style="height: 100%; position: relative">
+        <div style="height:90%;">
+            <div id="grid1" style="height:100%;"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script>
+        //状態定義
+        const workGroups = ['未発送','ラベル申込/決済_済','ラベル印字_済','パッケージング_済','発送完了','配送完了']; //ヘッダー情報
+
+        //カードのテンプレート
+        const rowTemplate = `
+        <div class="group-item-container">
+            <div class="group-item-container-inner {{? it.progress==100}}finish{{?? it.progress>=80}}eighty-per{{?? it.progress>=50}}fifty-per{{?? it.progress>=30}}thirty-per{{??}}start{{?}}">
+                <div data-column="title" class="group-item-title  {{? it.progress==100}}finish-head{{?? it.progress>=80}}eighty-per-head{{?? it.progress>=50}}fifty-per-head{{?? it.progress>=30}}thirty-per-head{{??}}start-head{{?}}"></div>
+                <div data-column="photo" class="group-photo-container"></div>
+                <div data-column="description" class="group-item-description"></div>
+                <div data-column="address_zip" class="group-item-description">〒</div>
+                <div data-column="address" class="group-item-description"></div>
+            </div>
+        </div>`;
+        const photoPresenter = '<img class="employee-photo" src={{=it.photo}} />';
+
+        //データ定義
+        const columns = [
+            {
+                id: 'title',
+                name: 'title',
+                dataField: 'title'
+            }, {
+                id: 'description',
+                name: 'description',
+                dataField: 'description'
+            }, {
+                id: 'photo',
+                dataField: 'photo',
+                presenter: photoPresenter
+            }, {
+                id: 'progress',
+                dataField: 'progress'
+            }, {
+                id: 'address',
+                name: 'address',
+                dataField: 'address'
+            }, {
+                id: 'address_zip',
+                name: 'address_zip',
+                dataField: 'address_zip'
+            }
+        ];
+
+        //仮データ
+        let data = [];
+        let dataView,TrellisGrouping;
+
+        //データの更新
+        const dataPut = async (updateData) => {
+            const params = new URLSearchParams();
+            console.log(updateData);
+            params.append('data', JSON.stringify(updateData));
+            const res =  await axios.put('/update', params);
+            data = res.data;
+        }
+
+        //ドラッグアンドドロップ時に反応
+        const dragDroppingFn = (sender,args) => {
+            if(args.status !== 'beforeDropping') return; //ドロップ完了時のみ発火させる
+            
+            setTimeout(() => {
+                //プログレスの値を更新
+                for(let i = 0,len = workGroups.length; i < len; i++){
+                    if(args.dataItem.work === workGroups[i]){
+                        args.dataItem.progress = i * 20;
+                    }
+                }
+                dataPut(sender.dataSource_);                
+            },500); //ディレイが無いとうまく動作しない模様
+        };
+
+        //データと描画更新
+        const renderer = async () => {
+            const res = await axios.get('/getData');
+            data = res.data;
+            dataView = new GC.Spread.Views.DataView(document.getElementById('grid1'), data, columns, new GC.Spread.Views.Plugins.GridLayout({
+                grouping: [{
+                    field: 'work',
+                    preDefinedGroups: workGroups,
+                    header: {height: 24}
+                }],
+                rowTemplate: rowTemplate,
+                rowHeight: 150,
+                groupStrategy: TrellisGrouping
+            }));
+        };
+
+        setInterval(renderer,3000); //3秒ごとにデータと描画を更新
+
+        //初期実行
+        const init = async () => {            
+            TrellisGrouping = new GC.Spread.Views.Plugins.TrellisGrouping({panelUnitWidth: 190});
+            renderer();
+            
+            //ドラッグ&ドロップ時のイベントを追加
+            TrellisGrouping['dragDropping'].addHandler(dragDroppingFn);
+        };
+        init();
+    </script>
+</body>
+
+</html>
